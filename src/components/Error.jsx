@@ -1,4 +1,5 @@
 import { ErrorCss } from './styled/Error.styled';
+import PropTypes from 'prop-types';
 
 export const Error = ({ children }) => {
   return (
@@ -9,4 +10,8 @@ export const Error = ({ children }) => {
       </p>
     </ErrorCss>
   );
+};
+
+Error.propTypes = {
+  children: PropTypes.oneOfType([PropTypes.string, PropTypes.object]),
 };
