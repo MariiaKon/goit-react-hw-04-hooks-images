@@ -1,125 +1,76 @@
-import { Component } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { findImage, PER_PAGE } from './Api';
 import { Searchbar } from './Searchbar';
 import { Loader } from './Loader';
 import { ImageGallery } from './ImageGallery';
 import { LoadMoreBtn } from './Button';
-import { Modal } from './Modal';
 import { Error } from './Error';
 
-export class App extends Component {
-  state = {
-    query: '',
-    images: [],
-    isLoading: false,
-    isLoadMoreBtnExist: false,
-    isModalOpen: false,
-    modalImage: null,
-    error: null,
+export function App() {
+  const [query, setQuery] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [images, setImages] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadMoreBtnExist, setIsLoadMoreBtnExist] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleSubmit = async searchQuery => {
+    setQuery(searchQuery);
+    setCurrentPage(1);
+    setImages([]);
+    setIsLoadMoreBtnExist(false);
+    setError(null);
   };
 
-  currentPage = 1;
-
-  changePage = () => {
-    return (this.currentPage += 1);
-  };
-
-  searchImages = async searchQuery => {
-    this.setState({ isLoading: true });
-
-    if (this.state.query !== searchQuery) {
-      this.setState({ query: searchQuery });
-      this.currentPage = 1;
+  useEffect(() => {
+    if (query === null) {
+      return;
     }
 
+    setIsLoading(true);
+    setIsLoadMoreBtnExist(false);
+
     try {
-      await findImage(searchQuery, this.currentPage).then(response => {
+      findImage(query, currentPage).then(response => {
+        const lastPage = currentPage > Math.floor(response.totalHits / PER_PAGE);
+
+        setImages(prevState => [...prevState, ...response.hits]);
+        setIsLoading(false);
+
+        if (response.totalHits === 0) {
+          setError('No results');
+        }
+
         if (response.totalHits > PER_PAGE) {
-          this.setState({
-            isLoadMoreBtnExist: true,
-            images: response.hits,
-            isLoading: false,
-            error: null,
-          });
-        } else if (response.totalHits <= PER_PAGE && response.totalHits > 0) {
-          this.setState({
-            isLoadMoreBtnExist: false,
-            images: response.hits,
-            isLoading: false,
-            error: null,
-          });
-        } else if (response.totalHits === 0) {
-          this.setState({
-            isLoadMoreBtnExist: false,
-            images: response.hits,
-            isLoading: false,
-            error: 'No results',
-          });
+          setIsLoadMoreBtnExist(true);
+        }
+
+        if (lastPage) {
+          setIsLoadMoreBtnExist(false);
         }
       });
     } catch (err) {
-      this.setState({ error: err });
+      setError(err);
     }
-  };
+  }, [query, currentPage]);
 
-  loadMoreImages = () => {
-    this.setState({ isLoading: true });
-    this.currentPage = this.changePage();
+  return (
+    <>
+      <Searchbar onSubmit={handleSubmit} />
 
-    try {
-      findImage(this.state.query, this.currentPage).then(response => {
-        this.setState({
-          images: [...this.state.images, ...response.hits],
-          isLoading: false,
-        });
-        if (this.currentPage > Math.floor(response.totalHits / PER_PAGE)) {
-          this.setState({
-            isLoadMoreBtnExist: false,
-          });
-        }
-      });
-    } catch (err) {
-      this.setState({ error: err });
-    }
-  };
+      {images.length !== 0 && <ImageGallery images={images} />}
 
-  toggleModal = () => {
-    this.setState(prevState => ({
-      isModalOpen: !prevState.isModalOpen,
-    }));
-  };
+      {isLoading && <Loader />}
 
-  getBigImage = async image => {
-    this.setState(prevState => {
-      return { modalImage: image };
-    });
-  };
+      {isLoadMoreBtnExist && (
+        <LoadMoreBtn
+          onClick={() => {
+            setCurrentPage(currentPage + 1);
+          }}
+        />
+      )}
 
-  render() {
-    return (
-      <>
-        <Searchbar onSubmit={this.searchImages} />
-
-        {this.state.images.length !== 0 && (
-          <ImageGallery
-            images={this.state.images}
-            openModal={this.toggleModal}
-            getBigImage={this.getBigImage}
-          />
-        )}
-
-        {this.state.isLoading && <Loader />}
-
-        {this.state.isLoadMoreBtnExist && (
-          <LoadMoreBtn onClick={this.loadMoreImages} />
-        )}
-
-        {this.state.isModalOpen && (
-          <Modal closeModal={this.toggleModal} image={this.state.modalImage} />
-        )}
-
-        {this.state.error && <Error children={this.state.error} />}
-      </>
-    );
-  }
+      {error && <Error children={error} />}
+    </>
+  );
 }
