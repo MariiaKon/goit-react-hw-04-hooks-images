@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { findImage, PER_PAGE } from './Api';
 import { Searchbar } from './Searchbar';
 import { Loader } from './Loader';
